@@ -32,7 +32,8 @@ IEx.configure(
     ":: #{IO.ANSI.cyan}%counter#{IO.ANSI.reset}] >",
   history_size: 50,
   inspect: [
-    pretty: true, 
+    pretty: true,
+    limit: 50, 
     width: 120
   ],
   width: 120
