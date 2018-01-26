@@ -1,4 +1,4 @@
-defmodule H4cc.Library do
+defmodule H4cc.Lib do
 
   @moduledoc """
   Structure that contains actual information about library.
@@ -9,12 +9,14 @@ defmodule H4cc.Library do
    * desc     - description of library
    * stars    - number of library stars
    * commited - date of last commit
+   * is_git   - true if library stores in Github
   """
 
   defstruct url:         nil,
             name:        nil,
             desc:        nil,
             stars:       nil,
-            commited:    nil
+            commited:    nil,
+            is_git:      nil
 
 end

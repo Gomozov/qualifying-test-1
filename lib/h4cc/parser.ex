@@ -28,12 +28,12 @@ defmodule H4cc.Parser do
     "Miscellaneous" => [%{desc: "Library for parsing US Addresses into their individual parts.", name: "address_us", url: "https://github.com/smashedtoatoms/address_us"}, ...]}
 
   ## Examples
-      iex> H4cc.Parser.parsefile(file)
+      iex> H4cc.Parser.parse_file(file)
       %{"Formulars" => [%{desc: "Erlang Business Documents Generator.", name: "forms", url: "https://github.com/spawnproc/forms"}],
       "Miscellaneous" => [%{desc: "Library for parsing US Addresses into their individual parts.", name: "address_us", url: "https://github.com/smashedtoatoms/address_us"}, ...]}
   """
 
-  def parsefile(list) do
+  def parse_file(list) do
     list
     |> fetch_repo(%{})
     |> Enum.map(&prepare_lib/1)
@@ -48,9 +48,7 @@ defmodule H4cc.Parser do
   """
 
   def prepare_lib({key, value}) do
-    pr_key = String.slice(key, 3..-1)      # Slice "## "
-    pr_value = prepare_lib_repo(value)
-    {pr_key, pr_value}
+    {String.slice(key, 3..-1), prepare_lib_repo(value)}
   end
 
   def prepare_lib_repo(list) do
@@ -69,8 +67,12 @@ defmodule H4cc.Parser do
   def parse_str(str) do
     name = get_name(str)
     url = get_url(str)
-    desc = get_desc(str, Enum.join(["[", name, "](", url, ")", " - "], ""))
-    %{name: name, url: url, desc: desc}
+    desc = get_desc(str, "["<>name<>"]("<>url<>") - ")
+    if String.contains?(url, "https://github.com/") do
+      %H4cc.Lib{name: name, url: url, desc: desc, is_git: true}
+    else
+      %H4cc.Lib{name: name, url: url, desc: desc, is_git: false}
+    end  
   end
 
   @doc """
@@ -111,6 +113,7 @@ defmodule H4cc.Parser do
     |> (&Regex.run(~r/\(.+?\)/, &1)).()
     |> List.to_string
     |> String.slice(1..-2)                 # Slice "(" and ")"
+    |> String.trim_trailing("/")
   end
 
   def fetch_repo([_head | []], acc) do
