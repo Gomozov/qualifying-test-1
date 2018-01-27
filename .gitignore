@@ -24,4 +24,5 @@ erl_crash.dump
 *.swp
 *.env
 prod.exs
+test.exs
 dev.exs

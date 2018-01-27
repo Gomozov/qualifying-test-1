@@ -14,22 +14,24 @@ defmodule H4cc.GithubLibraries do
     Returns Map with libraries and some addition information about them inside.
 
   ## Examples
-      iex> H4cc.GithubLibrariies.fetch_sha()
+      iex> H4cc.GithubLibraries.fetch()
       %{"Actors" => 
       [%{commited: "2017-09-26T22:44:20Z", desc: "Pipelined flow processing engine", name: "dflow", stars: 7, url: "https://github.com/dalmatinerdb/dflow"},
       %{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor"},
       %{commited: "2017-05-30T11:04:19Z", desc: "A Port Wrapper which forwards cast and call to a linked Port", name: "exos", stars: 44, url: "https://github.com/awetzel/exos"}, ...] ...}
   """
 
-  def fetch_sha() do  
+  def fetch() do  
     Logger.info "Fetching README.md from #{@github_url}"
     HTTPoison.get(@github_url, @headers)
     |> handle_response
     |> validate_file
     |> String.split("\n", trim: true)
     |> H4cc.Parser.parse_file()
-    |> Map.get("Algorithms and Data structures")
+ #   |> Map.get("Actors")
+    |> Map.get("Formulars")
     |> Enum.map(&take_info/1)
+    |> H4cc.DB.save_data
   end
   
   @doc """
@@ -78,8 +80,6 @@ defmodule H4cc.GithubLibraries do
       "organizations_url" => "https://api.github.com/users/elixir-lang/orgs",
       "repos_url" => "https://api.github.com/users/elixir-lang/repos", "site_admin" => false,
       "starred_url" => "https://api.github.com/users/elixir-lang/starred{/owner}{/repo}",
-      "subscriptions_url" => "https://api.github.com/users/elixir-lang/subscriptions", 
-      "type" => "Organization", "url" => "https://api.github.com/users/elixir-lang"}, 
       "forks" => 118, "default_branch" => "master", 
       "comments_url" => "https://api.github.com/repos/elixir-lang/ex_doc/comments{/number}",
       "commits_url" => "https://api.github.com/repos/elixir-lang/ex_doc/commits{/sha}", "id" => 3642931,
@@ -96,11 +96,11 @@ defmodule H4cc.GithubLibraries do
 
   @doc """
     Takes H4cc.Lib like:
-    %{desc: "Some description", name: "name", url: "https://github.com/user/repo", is_git: true, stars: nil, commited: nil}.
+    %H4cc.Lib{desc: "Some description", name: "name", url: "https://github.com/user/repo", is_git: true, stars: nil, commited: nil}.
     Returns updeted H4cc.lib with actual information about number of stars and date of last commit.
   ## Examples
-      iex> H4cc.GithubLibraries.take_info(%{desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", url: "https://github.com/sasa1977/exactor"})
-      %{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor"}
+      iex> H4cc.GithubLibraries.take_info(%H4cc.Lib{desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", url: "https://github.com/sasa1977/exactor"", is_git: true, stars: nil, commited: nil})
+      %H4cc.Lib{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor", is_git: true}
   """
 
   def take_info(lib) do
@@ -131,6 +131,12 @@ defmodule H4cc.GithubLibraries do
   defp handle_response({ _, %{status_code: status, body: body}}) do
     Logger.error "Error #{status} returned"
     IO.inspect body
+    Poison.Parser.parse!(body)
+  end
+  
+  defp handle_response({ :error, %{reason: reason}}) do
+    Logger.warn "Error: #{reason}"
+    %{}
   end
 
   defp take_limit(headers) do
