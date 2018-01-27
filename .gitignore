@@ -26,3 +26,4 @@ erl_crash.dump
 prod.exs
 test.exs
 dev.exs
+disk_storage
