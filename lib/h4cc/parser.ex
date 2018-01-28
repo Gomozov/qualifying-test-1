@@ -47,14 +47,13 @@ defmodule H4cc.Parser do
       {"Actors", %{name: "Awesome Elixir by LibHunt", url: "https://elixir.libhunt.com", desc: ""A curated list of awesome Elixir and Erlang packages and resources.}}
   """
 
-  def prepare_lib({key, value}) do
-    {String.slice(key, 3..-1), prepare_lib_repo(value)}
-  end
-
-  def prepare_lib_repo(list) do
-    list
+  def prepare_lib({k, v}) do
+    key = String.slice(k, 3..-1)
+    value = 
+    v
     |> Enum.map(&String.slice(&1, 2..-1))  # Slice "* "
-    |> Enum.map(&parse_str/1)
+    |> Enum.map(&parse_str(&1, key))
+    {key, value}
   end
   
   @doc """
@@ -64,14 +63,14 @@ defmodule H4cc.Parser do
       %{name: "Awesome Elixir by LibHunt", url: "https://elixir.libhunt.com", desc: ""A curated list of awesome Elixir and Erlang packages and resources.}
   """
 
-  def parse_str(str) do
+  def parse_str(str, key) do
     name = get_name(str)
     url = get_url(str)
     desc = get_desc(str, "["<>name<>"]("<>url<>") - ")
     if String.contains?(url, "https://github.com/") do
-      %H4cc.Lib{name: name, url: url, desc: desc, is_git: true}
+      %H4cc.Lib{name: name, url: url, desc: desc, is_git: true, folder: key}
     else
-      %H4cc.Lib{name: name, url: url, desc: desc, is_git: false}
+      %H4cc.Lib{name: name, url: url, desc: desc, is_git: false, folder: key}
     end  
   end
 

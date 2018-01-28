@@ -12,19 +12,19 @@ defmodule H4cc.DB do
 
   def save_lib(lib) do
     {:ok, table} = :dets.open_file(:disk_storage, [type: :set])
-    :dets.insert(table, {lib.name, lib.url, lib.desc, lib.stars, lib.commited, lib.is_git})
+    :dets.insert(table, {lib.name, lib.url, lib.desc, lib.stars, lib.commited, lib.folder, lib.is_git})
     :dets.close(:disk_storage)
     #:dets.open_file(:file_table, [{:file, 'cool_table.txt'}])
   end
 
   def load_map() do
     load_rawdata()
-    |> Enum.map(fn {n, u, d, s, c, i} -> %H4cc.Lib{name: n, url: u, desc: d, stars: s, commited: c, is_git: i} end) 
+    |> Enum.map(fn {n, u, d, s, c, f, i} -> %H4cc.Lib{name: n, url: u, desc: d, stars: s, commited: c, folder: f, is_git: i} end) 
   end
 
   def load_rawdata() do
     :dets.open_file(:disk_storage, [type: :set])
-    raw = :dets.match_object(:disk_storage, {:"_", :"_", :"_", :"_", :"_", :"_"}) 
+    raw = :dets.match_object(:disk_storage, {:"_", :"_", :"_", :"_", :"_", :"_", :"_"}) 
     :dets.close(:disk_storage)
     raw
   end

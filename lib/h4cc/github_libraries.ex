@@ -28,8 +28,12 @@ defmodule H4cc.GithubLibraries do
     |> validate_file
     |> String.split("\n", trim: true)
     |> H4cc.Parser.parse_file()
- #   |> Map.get("Actors")
-    |> Map.get("Formulars")
+    |> Enum.map(&spawn(H4cc.GithubLibraries, :get_save_data, [&1]))
+  end
+
+  def get_save_data({k, v}) do 
+    Logger.info "Fetching libraries from folder: #{k}"
+    v
     |> Enum.map(&take_info/1)
     |> H4cc.DB.save_data
   end
@@ -37,8 +41,12 @@ defmodule H4cc.GithubLibraries do
   @doc """
     Compares the received SHA and calculated SHA of file.
   """
+  def validate_file({:error, body}) do
+    Logger.warn "Error!"
+    IO.inspect body
+  end
 
-  def validate_file (body) do
+  def validate_file({:ok, body}) do
     file = 
     body
     |> Map.get("content")
@@ -71,7 +79,6 @@ defmodule H4cc.GithubLibraries do
       "watchers" => 522, "mirror_url" => nil, 
       "stargazers_count" => 522, 
       "license" => %{"key" => "other", "name" => "Other", "spdx_id" => nil, "url" => nil},
-      "organization" => %{"avatar_url" => "https://avatars1.githubusercontent.com/u/1481354?v=4",
       "events_url" => "https://api.github.com/users/elixir-lang/events{/privacy}",
       "followers_url" => "https://api.github.com/users/elixir-lang/followers",
       "following_url" => "https://api.github.com/users/elixir-lang/following{/other_user}",
@@ -84,10 +91,10 @@ defmodule H4cc.GithubLibraries do
       "comments_url" => "https://api.github.com/repos/elixir-lang/ex_doc/comments{/number}",
       "commits_url" => "https://api.github.com/repos/elixir-lang/ex_doc/commits{/sha}", "id" => 3642931,
       "homepage" => "http://elixir-lang.org", 
-      "forks_count" => 118, "pushed_at" => "2018-01-19T15:37:31Z", ...}
+      "forks_count" => 118, "pushed_at" => "2018-01-19T15:37:31Z"}
   """
   def get_url(url) do
-    Logger.info "Fetching info from #{url}"
+    #Logger.info "Fetching info from #{url}"
     url
     |> String.replace_leading("https://github.com", "https://api.github.com/repos")
     |> HTTPoison.get(@headers)
@@ -103,25 +110,42 @@ defmodule H4cc.GithubLibraries do
       %H4cc.Lib{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor", is_git: true}
   """
 
+  #def take_info(lib) do
+  #  if lib.is_git do
+  #    answ = get_url(lib.url)
+  #    stars = Map.get(answ, "stargazers_count")
+  #    date = Map.get(answ, "pushed_at")                 
+  #    %{lib | stars: stars, commited: date}
+  #  else
+  #    Logger.warn "#{lib.url} is not a Github library"
+  #    lib
+  #  end
+  #end
+
   def take_info(lib) do
-    if lib.is_git do
-      answ = get_url(lib.url)
-      stars = Map.get(answ, "stargazers_count")
-      date = Map.get(answ, "pushed_at")                 
+    with true       <- lib.is_git,
+         {:ok, ans} <- get_url(lib.url)
+    do
+      stars = Map.get(ans, "stargazers_count")
+      date = Map.get(ans, "pushed_at")                 
       %{lib | stars: stars, commited: date}
     else
-      Logger.warn "#{lib.url} is not a Github library"
-      lib
+      false       ->
+        Logger.warn "#{lib.url} is not a Github library"
+        lib
+      {:error, _} -> 
+        Logger.warn "#{lib.url} is unavailable"
+        lib
     end
   end
 
   defp handle_response({ :ok, %{status_code: 200, body: body, headers: headers}}) do
-    Logger.info "Successful response. Left: #{take_limit(headers)}"
-    Poison.Parser.parse!(body)
+    # Logger.info "Successful response. Left: #{take_limit(headers)}"
+    Poison.Parser.parse(body)
   end
   
   defp handle_response({ :ok, %{status_code: 301, body: body}}) do
-    Logger.warn "Redirection"
+    # Logger.warn "Redirection"
     Poison.Parser.parse!(body)
     |> Map.get("url")
     |> HTTPoison.get(@headers)
@@ -130,13 +154,13 @@ defmodule H4cc.GithubLibraries do
 
   defp handle_response({ _, %{status_code: status, body: body}}) do
     Logger.error "Error #{status} returned"
-    IO.inspect body
-    Poison.Parser.parse!(body)
+    # IO.inspect body
+    {:error, %{}}
   end
   
   defp handle_response({ :error, %{reason: reason}}) do
-    Logger.warn "Error: #{reason}"
-    %{}
+    Logger.error "Error: #{reason}"
+    {:error, %{}}
   end
 
   defp take_limit(headers) do
