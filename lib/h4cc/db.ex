@@ -7,7 +7,7 @@ defmodule H4cc.DB do
   
   def save_data(map) do
     Enum.map(map, &save_lib(&1))
-    Logger.info "Data save successfully"
+    # Logger.info "Data save successfully"
   end
 
   def save_lib(lib) do

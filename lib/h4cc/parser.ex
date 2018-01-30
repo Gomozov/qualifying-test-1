@@ -48,7 +48,7 @@ defmodule H4cc.Parser do
   """
 
   def prepare_lib({k, v}) do
-    key = String.slice(k, 3..-1)
+    key = String.slice(k, 3..-1)           # Slice "## "
     value = 
     v
     |> Enum.map(&String.slice(&1, 2..-1))  # Slice "* "
@@ -64,14 +64,41 @@ defmodule H4cc.Parser do
   """
 
   def parse_str(str, key) do
-    name = get_name(str)
-    url = get_url(str)
-    desc = get_desc(str, "["<>name<>"]("<>url<>") - ")
-    if String.contains?(url, "https://github.com/") do
-      %H4cc.Lib{name: name, url: url, desc: desc, is_git: true, folder: key}
-    else
-      %H4cc.Lib{name: name, url: url, desc: desc, is_git: false, folder: key}
-    end  
+    {str, %H4cc.Lib{folder: key}}
+    |> get_name()
+    |> get_url()
+    |> get_desc()
+    |> check_url()
+  end
+
+  @doc """
+    Takes String and returns name of a library.
+  ## Example 
+      iex> H4cc.Parser.get_name("[Awesome Elixir by LibHunt](https://elixir.libhunt.com) - A curated list of awesome Elixir and Erlang packages and resources.")
+      "Awesome Elixir by LibHunt"
+  """
+
+  def get_name({str, lib}) do
+    name =
+    str
+    |> (&Regex.run(~r/\[.+?\]/, &1)).()
+    |> List.to_string
+    {String.trim_leading(str, name), %{lib | name: String.slice(name, 1..-2)}}
+  end
+  
+  @doc """
+    Takes String and returns URL of a library.
+  ## Example 
+      iex> H4cc.Parser.get_url("[Awesome Elixir by LibHunt](https://elixir.libhunt.com) - A curated list of awesome Elixir and Erlang packages and resources.")
+      "https://elixir.libhunt.com"
+  """
+
+  def get_url({str, lib}) do
+    url =
+    str
+    |> (&Regex.run(~r/\(.+?\)/, &1)).()
+    |> List.to_string
+    {String.trim_leading(str, url), %{lib | url: String.slice(url, 1..-2)}}
   end
 
   @doc """
@@ -81,38 +108,23 @@ defmodule H4cc.Parser do
       "A curated list of awesome Elixir and Erlang packages and resources."
   """
 
-  def get_desc(str, str_leading) do
-    str
-    |> String.trim_leading(str_leading)
+  def get_desc({str, lib}) do
+    %{lib | desc: String.trim_leading(str, " - ")}
   end
 
   @doc """
-    Takes String and returns name of a library.
+    Takes Library and checks if URL is a github repository.
   ## Example 
-      iex> H4cc.Parser.get_desc("[Awesome Elixir by LibHunt](https://elixir.libhunt.com) - A curated list of awesome Elixir and Erlang packages and resources.")
-      "Awesome Elixir by LibHunt"
-  """
-
-  def get_name(str) do
-    str
-    |> (&Regex.run(~r/\[.+?\]/, &1)).()
-    |> List.to_string
-    |> String.slice(1..-2)                 # Slice "[" and "]"
-  end
-
-  @doc """
-    Takes String and returns URL of a library.
-  ## Example 
-      iex> H4cc.Parser.get_desc("[Awesome Elixir by LibHunt](https://elixir.libhunt.com) - A curated list of awesome Elixir and Erlang packages and resources.")
+      iex> H4cc.Parser.check_url("[Awesome Elixir by LibHunt](https://elixir.libhunt.com) - A curated list of awesome Elixir and Erlang packages and resources.")
       "https://elixir.libhunt.com"
   """
 
-  def get_url(str) do
-    str
-    |> (&Regex.run(~r/\(.+?\)/, &1)).()
-    |> List.to_string
-    |> String.slice(1..-2)                 # Slice "(" and ")"
-    |> String.trim_trailing("/")
+  def check_url(lib) do
+    if String.contains?(lib.url, "https://github.com/") do
+      %{lib | is_git: true}
+    else
+      %{lib | is_git: false}
+    end  
   end
 
   def fetch_repo([_head | []], acc) do

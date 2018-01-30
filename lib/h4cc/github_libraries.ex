@@ -23,7 +23,7 @@ defmodule H4cc.GithubLibraries do
 
   def fetch() do  
     Logger.info "Fetching README.md from #{@github_url}"
-    HTTPoison.get(@github_url, @headers)
+    HTTPoison.get(@github_url, @headers, [timeout: 10_000, recv_timeout: 10_000])
     |> handle_response
     |> validate_file
     |> String.split("\n", trim: true)
@@ -34,7 +34,7 @@ defmodule H4cc.GithubLibraries do
   def get_save_data({k, v}) do 
     Logger.info "Fetching libraries from folder: #{k}"
     v
-    |> Enum.map(&take_info/1)
+    |> Enum.map(&take_info/1)#(&spawn(H4cc.GithubLibraries, :take_info, [&1]))
     |> H4cc.DB.save_data
   end
   
@@ -42,7 +42,7 @@ defmodule H4cc.GithubLibraries do
     Compares the received SHA and calculated SHA of file.
   """
   def validate_file({:error, body}) do
-    Logger.warn "Error!"
+    Logger.warn "Error! Can't validate file!"
     IO.inspect body
   end
 
@@ -97,7 +97,8 @@ defmodule H4cc.GithubLibraries do
     #Logger.info "Fetching info from #{url}"
     url
     |> String.replace_leading("https://github.com", "https://api.github.com/repos")
-    |> HTTPoison.get(@headers)
+    |> String.trim_trailing("/")
+    |> HTTPoison.get(@headers, [timeout: 10_000, recv_timeout: 10_000])
     |> handle_response
   end
 
@@ -109,18 +110,6 @@ defmodule H4cc.GithubLibraries do
       iex> H4cc.GithubLibraries.take_info(%H4cc.Lib{desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", url: "https://github.com/sasa1977/exactor"", is_git: true, stars: nil, commited: nil})
       %H4cc.Lib{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor", is_git: true}
   """
-
-  #def take_info(lib) do
-  #  if lib.is_git do
-  #    answ = get_url(lib.url)
-  #    stars = Map.get(answ, "stargazers_count")
-  #    date = Map.get(answ, "pushed_at")                 
-  #    %{lib | stars: stars, commited: date}
-  #  else
-  #    Logger.warn "#{lib.url} is not a Github library"
-  #    lib
-  #  end
-  #end
 
   def take_info(lib) do
     with true       <- lib.is_git,
@@ -134,7 +123,7 @@ defmodule H4cc.GithubLibraries do
         Logger.warn "#{lib.url} is not a Github library"
         lib
       {:error, _} -> 
-        Logger.warn "#{lib.url} is unavailable"
+        Logger.error "#{lib.url} is unavailable"
         lib
     end
   end
