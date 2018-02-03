@@ -26,7 +26,8 @@ defmodule H4cc.Mixfile do
       { :httpoison, "~> 0.9" },
       { :poison, "~> 2.2"},
       { :table_rex, "~> 0.10"},
-      { :ex_doc, "~> 0.16", only: :dev, runtime: false}
+      { :ex_doc, "~> 0.16", only: :dev, runtime: false},
+      { :credo, "~> 0.9.0-rc1", only: [:dev, :test], runtime: false}
     ]
   end
 end

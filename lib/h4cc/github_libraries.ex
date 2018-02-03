@@ -11,19 +11,17 @@ defmodule H4cc.GithubLibraries do
   @headers [{"Authorization", "token #{Application.get_env(:h4cc, :token)}"}]
 
   @doc """
-    Returns Map with libraries and some addition information about them inside.
+    Returns Map with folder name as key and List with %H4cc.Lib{} as value.
 
-  ## Examples
-      iex> H4cc.GithubLibraries.fetch()
-      %{"Actors" => 
-      [%{commited: "2017-09-26T22:44:20Z", desc: "Pipelined flow processing engine", name: "dflow", stars: 7, url: "https://github.com/dalmatinerdb/dflow"},
-      %{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor"},
-      %{commited: "2017-05-30T11:04:19Z", desc: "A Port Wrapper which forwards cast and call to a linked Port", name: "exos", stars: 44, url: "https://github.com/awetzel/exos"}, ...] ...}
+      H4cc.GithubLibraries.fetch()
+      %{"Folder" => [%H4cc.Lib{commited: "2017-09-26T22:44:20Z", desc: "Description 1", name: "Name 1", stars: 7, url: "https://github.com/someurl1", is_git: true},
+      %{commited: "2017-11-08T18:47:06Z", desc: "Description 2", name: "Name 2", stars: 508, url: "https://github.com/someurl2", is_git: true},
+      %{commited: "2017-05-30T11:04:19Z", desc: "Description 3", name: "Name 3", stars: 44, url: "https://github.com/someurl3, is_git: true}, ...], ...}
   """
-
   def fetch() do  
     Logger.info "Fetching README.md from #{@github_url}"
-    HTTPoison.get(@github_url, @headers, [timeout: 10_000, recv_timeout: 10_000])
+    @github_url
+    |> HTTPoison.get(@headers, [timeout: 10_000, recv_timeout: 10_000])
     |> handle_response
     |> validate_file
     |> String.split("\n", trim: true)
@@ -35,14 +33,14 @@ defmodule H4cc.GithubLibraries do
     Logger.info "Fetching libraries from folder: #{k}"
     v
     |> Enum.map(&take_info/1)#(&spawn(H4cc.GithubLibraries, :take_info, [&1]))
-    |> H4cc.DB.save_data
+    |> H4cc.DB.save_lib
   end
   
   @doc """
     Compares the received SHA and calculated SHA of file.
   """
   def validate_file({:error, body}) do
-    Logger.warn "Error! Can't validate file!"
+    Logger.error "Error! Can't validate file!"
     IO.inspect body
   end
 
@@ -72,26 +70,6 @@ defmodule H4cc.GithubLibraries do
 
   @doc """
     Returns JSON information about ropository by it URL.
- 
-  ## Examples
-      iex> H4cc.GithubLibraries.get_url("https://github.com/elixir-lang/ex_doc")
-      %{"statuses_url" => "https://api.github.com/repos/elixir-lang/ex_doc/statuses/{sha}", 
-      "watchers" => 522, "mirror_url" => nil, 
-      "stargazers_count" => 522, 
-      "license" => %{"key" => "other", "name" => "Other", "spdx_id" => nil, "url" => nil},
-      "events_url" => "https://api.github.com/users/elixir-lang/events{/privacy}",
-      "followers_url" => "https://api.github.com/users/elixir-lang/followers",
-      "following_url" => "https://api.github.com/users/elixir-lang/following{/other_user}",
-      "gists_url" => "https://api.github.com/users/elixir-lang/gists{/gist_id}", "gravatar_id" => "",
-      "html_url" => "https://github.com/elixir-lang", "id" => 1481354, "login" => "elixir-lang",
-      "organizations_url" => "https://api.github.com/users/elixir-lang/orgs",
-      "repos_url" => "https://api.github.com/users/elixir-lang/repos", "site_admin" => false,
-      "starred_url" => "https://api.github.com/users/elixir-lang/starred{/owner}{/repo}",
-      "forks" => 118, "default_branch" => "master", 
-      "comments_url" => "https://api.github.com/repos/elixir-lang/ex_doc/comments{/number}",
-      "commits_url" => "https://api.github.com/repos/elixir-lang/ex_doc/commits{/sha}", "id" => 3642931,
-      "homepage" => "http://elixir-lang.org", 
-      "forks_count" => 118, "pushed_at" => "2018-01-19T15:37:31Z"}
   """
   def get_url(url) do
     #Logger.info "Fetching info from #{url}"
@@ -105,12 +83,8 @@ defmodule H4cc.GithubLibraries do
   @doc """
     Takes H4cc.Lib like:
     %H4cc.Lib{desc: "Some description", name: "name", url: "https://github.com/user/repo", is_git: true, stars: nil, commited: nil}.
-    Returns updeted H4cc.lib with actual information about number of stars and date of last commit.
-  ## Examples
-      iex> H4cc.GithubLibraries.take_info(%H4cc.Lib{desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", url: "https://github.com/sasa1977/exactor"", is_git: true, stars: nil, commited: nil})
-      %H4cc.Lib{commited: "2017-11-08T18:47:06Z", desc: "Helpers for easier implementation of actors in Elixir", name: "exactor", stars: 508, url: "https://github.com/sasa1977/exactor", is_git: true}
+    Returns updated H4cc.lib with actual information about number of stars and date of last commit.
   """
-
   def take_info(lib) do
     with true       <- lib.is_git,
          {:ok, ans} <- get_url(lib.url)
@@ -135,7 +109,8 @@ defmodule H4cc.GithubLibraries do
   
   defp handle_response({ :ok, %{status_code: 301, body: body}}) do
     # Logger.warn "Redirection"
-    Poison.Parser.parse!(body)
+    body
+    |> Poison.Parser.parse!()
     |> Map.get("url")
     |> HTTPoison.get(@headers)
     |> handle_response
@@ -143,7 +118,6 @@ defmodule H4cc.GithubLibraries do
 
   defp handle_response({ _, %{status_code: status, body: body}}) do
     Logger.error "Error #{status} returned"
-    # IO.inspect body
     {:error, %{}}
   end
   

@@ -16,9 +16,9 @@ defmodule H4cc.Lib do
   defstruct name:        nil,
             url:         nil,
             desc:        nil,
-            stars:       nil,
+            stars:       0,
             commited:    nil,
             folder:      nil,
-            is_git:      nil
+            is_git:      false
 
 end
